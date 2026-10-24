@@ -1,8 +1,13 @@
-# CodeLens AI — Code Debugging & GitHub Repository Analysis Platform
+# TeamPulse: Detect. Diagnose. Recover.
 
-CodeLens AI analyzes public GitHub repositories for bugs and security issues, explains their root causes, proposes fixes, checks those fixes in a throwaway workspace, and can open a pull request with the approved change. It is a React + Vite frontend talking to a FastAPI backend (the backend's API title is "TeamPulse API").
+TeamPulse has two parts in one React + FastAPI app:
 
-**Pipeline:** inspect repo → analyze (AST rules, Ruff, Bandit, secret scanner, optional ESLint) → diagnose root cause → propose fix → approve → verify in isolated workspace → publish branch / pull request. Monitoring can rerun the analysis automatically on GitHub pushes via webhooks.
+1. **Team room (Mission Control / Ship Intelligence)**: a shared room for a student project team. An AI-assisted recovery agent finds what is blocking the project, recommends a fix for the Captain to approve, checks at the next update whether it worked, and picks a different action if it didn't. See [Mission Control](#mission-control-ship-intelligence).
+2. **Code checks**: analyzes public GitHub repositories for bugs and security issues, explains likely root causes, proposes code fixes, verifies them in a throwaway workspace, and can open a pull request.
+
+Everything the app shows is real data from the backend. The only simulated parts are the demo crew's follow-up updates in the team room, and those are labeled "Simulated".
+
+**Code checks pipeline:** inspect repo → analyze (AST rules, Ruff, Bandit, secret scanner, optional ESLint) → diagnose root cause → propose fix → approve → verify in isolated workspace → publish branch / pull request. Monitoring can rerun the analysis automatically on GitHub pushes via webhooks.
 
 ---
 
@@ -73,9 +78,13 @@ The frontend calls `http://localhost:8000` by default. To point it elsewhere, co
 
 ### 4. Try it
 
-1. Go to **Repositories** → **Analyze Repository**.
-2. Paste a public repo URL, e.g. `https://github.com/pallets/itsdangerous`, and start the analysis.
-3. Open the repository, then open a finding to run **Diagnose**, **Generate Fix**, **Approve** and **Verify**.
+The app opens on the **Team room** with a demo project loaded. To present it, follow [Giving the demo](#giving-the-demo); the presenter guide in the corner of the screen tells you the next click.
+
+To try Code checks instead:
+
+1. Go to **Repositories** → **Check a repository**.
+2. Paste a public repo URL, e.g. `https://github.com/pallets/itsdangerous`, and click **Run code checks**.
+3. On the repository page, click **Diagnose findings**. Open a finding and use **Propose a fix**, **Approve fix** and **Verify in a clean copy**. With `GITHUB_TOKEN` set, a verified fix can be pushed to a branch and opened as a draft pull request.
 
 Or from the command line:
 
@@ -84,6 +93,147 @@ curl -X POST http://localhost:8000/api/repositories/analyze \
   -H "Content-Type: application/json" \
   -d '{"repository_url": "https://github.com/pallets/itsdangerous"}'
 ```
+
+---
+
+## Giving the demo
+
+The demo shows one full recovery loop in the **Team room**: Ship Intelligence spots the blocker, asks privately, diagnoses it, recommends an action, checks whether it worked, and adapts when it didn't. It takes about 90 seconds and fits the pitch's demo slot (2:15 to 3:45).
+
+### The scenario
+
+"Campus Events App" is 36 hours from its deadline. **Backend API** (owned by Orion) has been marked blocked and silent for 20 hours. Frontend (Vega), End-to-End Testing (Lyra) and Deploy (Nova) are all waiting on it. Crew members are shown by call sign only.
+
+All times are relative to when the demo was loaded, so it always looks current. **Reset demo** reloads the scenario at any time.
+
+### Before you present (10 minutes before)
+
+**Servers**
+- [ ] Backend running: `cd backend`, activate the venv, `uvicorn app.main:app --port 8000`. <http://localhost:8000/api/health> returns `{"status":"ok", ...}`.
+- [ ] Frontend running: `npm run dev` in the `details imfo` folder; the app opens at <http://localhost:5173>. If Vite picked another port (5174/5175 are fine), make sure it's listed in `FRONTEND_ORIGINS`.
+- [ ] The bottom of the sidebar says **Backend connected**.
+- [ ] Keep the backend terminal open so you can restart it quickly, but don't screen-share it.
+
+**AI mode**
+- [ ] The line next to the **Ship Intelligence** heading says **Rule-based mode (no AI key)** or **AI-assisted**.
+- [ ] **If the venue Wi-Fi is unreliable, run without `OPENAI_API_KEY`** (remove it from `backend/.env` and restart the backend). With a key set but no internet, **Diagnose and recommend** can hang for 90 seconds or more before falling back to rules. Rule-based mode gives the same demo, fully offline.
+- [ ] If you keep the key, click **Diagnose and recommend** once during the dry run to confirm it answers within a few seconds.
+
+**Dry run**
+- [ ] Click **Reset demo**, run the whole demo once, then click **Reset demo** again. Do the final reset shortly before you present so the clock reads **36 hours left**.
+- [ ] Starting state: **36 hours left**, **High risk**, red **Emergency mode** banner, Backend API circled in red, and the Ship Intelligence panel showing **Send Orion a private check-in**.
+
+**Screen**
+- [ ] Browser window at least 1280px wide, or zoom to 90%, so all five missions fit on the whiteboard.
+- [ ] Close unrelated tabs, mute notifications, and hide the bookmarks bar.
+- [ ] Decide on the **presenter guide** (the dark box in the bottom corner, "1 of 7"). It tells you the next click and a line to say, and makes that button glow. Press `G` to show or hide it. Keep it on for rehearsal; on the projector, keep it if it helps you or hide it for a cleaner screen. It remembers your choice in this browser.
+
+### Run-sheet (about 90 seconds)
+
+Click only the button the step names. The presenter guide shows the same steps and lines.
+
+| Step | Click | What appears on screen | What to say |
+|---|---|---|---|
+| Open | Nothing yet. Point at the whiteboard. | High risk, Emergency mode, Backend API circled in red, three missions "Waiting on Backend API" | "Thirty-six hours before the deadline. A task board would show four unfinished cards. Here you can see why: Backend API is blocked, and Frontend, Testing and Deploy are all waiting on it." |
+| 1 | **Send Orion a private check-in**, then **Send check-in** | A private check-in dialog, then Orion's view | "Backend API has been quiet and 3 missions are waiting on it. Instead of another reminder, we ask what's stopping it." |
+| 2 | **Send answer** (the answer is pre-filled) | Orion's answer is quoted in the Ship Intelligence panel | "On Orion's side it's a short private answer. No blame, no scores." |
+| 3 | **Diagnose and recommend** | Likely root cause *API contract / requirements not finalized*, the evidence, and the recommended action | "It combines the signals with Orion's answer and names the likely root cause, with the evidence." |
+| 4 | **Approve as Captain** (on *Agree a minimal API contract; Frontend continues on mock data*) | The step track moves to **Verify** | "It recommends one specific action. Nothing happens until the Captain approves." |
+| 5 | **Still blocked** | Verification fails; a new action appears: *Pairing session on the blocker*, attempt 2 | "This follow-up update is simulated for the demo. Now it checks whether the action actually worked." |
+| 6 | **Approve as Captain** | The step track moves back to **Verify** | "The first action didn't work, so it adapts. A different action, never the same reminder twice." |
+| 7 | **Blocker resolved** | **Recovered**, risk drops to **Low risk**, Emergency mode turns off, the whiteboard circle disappears | "Verified: the mission is moving again and the work behind it is unblocked." |
+| Close | Nothing | | "Don't just track the deadline. Recover before it." |
+
+**Where to point**
+- **Whiteboard** ("Who's waiting on whom"): the hidden dependency, made visible. The red circle is the blocker.
+- **Step track** under the Ship Intelligence heading: where you are in Detect, Diagnose, Intervene, Verify, Adapt.
+- **Room activity** on the right: the conversation between the crew, you as Captain, and Ship Intelligence. Simulated updates carry a **Simulated** tag; point at it in step 5.
+- **Draft message** in the recommendation: Ship Intelligence drafts a respectful message, but the Captain sends it. Nothing is sent automatically.
+
+### Say it honestly
+
+- Say **"likely root cause"**, never "the cause".
+- Say **"the Captain approves"**. The agent recommends; it never acts on its own.
+- In step 5, say clearly that **the follow-up updates are simulated** for the demo.
+- Lead with the **verify-and-adapt loop**; that's the innovation.
+- Don't claim it's tested at scale or with real teams yet, and don't claim other tools have no dependency tracking.
+
+What is real and what is simulated:
+
+| Real | Simulated (labeled in the UI) |
+|------|-------------------------------|
+| Risk detection, dependency analysis, root-bottleneck selection, diagnosis, playbook choice, Captain approval, verification and adaptation logic, timeline, SQLite storage | The **follow-up updates** from crew members in steps 5 and 7 (the **Still blocked** and **Blocker resolved** buttons). Also: the demo project is seeded data, the check-in answer is typed by the presenter on the crew member's behalf, and drafted messages are not actually sent |
+
+Without `OPENAI_API_KEY`, diagnosis is rule-based (shown as "Rule-based" in the UI); with it, the LLM classifies the check-in answer and writes the explanation, and the app falls back to rules if the LLM call fails.
+
+### Questions you'll likely get
+
+| Question | Answer |
+|---|---|
+| What if the AI is wrong? | Detection is deterministic rules, not AI. The diagnosis is shown as a *likely* cause with its evidence and the person's own answer, the Captain approves every action, and the next update verifies whether it worked. A wrong guess gets caught and replaced. |
+| Is it reading people's private data? | It uses only mission status, deadlines, dependencies, updates and a private check-in answer. Crew members appear by call sign, alerts are about missions, not people, and there are no scores or rankings. Only the Captain sees check-in answers. |
+| What is actually built? | The detection rules, dependency analysis, diagnosis, recommendations, approval, verification and adaptation all run for real and are saved in SQLite. The crew's follow-up updates are simulated in the demo, and the demo project is seeded data. |
+| Does it need an AI key? | No. Without one it runs on rules (shown as "Rule-based mode"). With one, an LLM reads the check-in answer and writes the explanation, and the app falls back to rules if the LLM fails. |
+| Does it message students automatically? | No. It drafts a message for the Captain to review and send. |
+| What happens when nothing works? | After the planned actions for a cause are used up, it stops guessing and asks the Captain to decide: cut scope, change owners, or renegotiate the deadline. |
+| How is it different from a task manager? | Task managers track status and can track dependencies. TeamPulse diagnoses why a blocker exists, recommends a matching fix, checks whether it worked, and changes course if it didn't. |
+| What's next? | Pull mission updates straight from GitHub and team chat instead of typing them, and pilot with real student teams. (Code-level checks on GitHub repositories already work; see **Code checks** in the sidebar.) |
+
+### If something goes wrong
+
+| What you see | What to do |
+|---|---|
+| "The team room can't reach the backend", or **Backend not reachable** in the sidebar | The backend stopped or is on another port. Start it and click **Try again**. |
+| You clicked the wrong button | Keep going. The presenter guide works out the next step from what's on screen. To start over, click **Reset demo**. |
+| **Diagnose and recommend** keeps spinning | The OpenAI key is set but there's no internet. Wait for the fallback, or next time run without the key. |
+| The screen shows something unexpected after a reset | Stop the backend, delete `backend/teampulse.db`, and start it again. The demo project is recreated automatically. |
+
+### Showing Code checks (optional, only if asked)
+
+Code checks analyze a real GitHub repository, so they need internet. Don't do a live check during the pitch: a large repository can take a minute.
+
+1. Before you present, go to **Repositories** → **Check a repository**, paste `https://github.com/pallets/itsdangerous`, and click **Run code checks**. Then click **Diagnose findings**.
+2. During Q&A, open the repository page to show the findings and likely root causes, then open a finding.
+3. Results stay saved in the browser, but the backend forgets scans when it restarts. If you restarted the backend after step 1, click **Run checks again** before using **Propose a fix**.
+4. Without an OpenAI key, most findings only get a TODO-comment "fix", and **Verify** honestly reports that it didn't resolve the finding. Use an AI key if you want to show a fix that verifies.
+
+### After the demo
+
+Click **Reset demo** so the next person starts from the beginning.
+
+---
+
+## Mission Control (Ship Intelligence)
+
+Task boards show *what* is unfinished, not *why*. Ship Intelligence targets four gaps: **late detection, hidden dependencies, no clear recovery plan, and no follow-up.** It runs a five-step loop:
+
+| Step | What it does | How |
+|------|--------------|-----|
+| **Detect** | Notices risk signals in tasks, deadlines, dependencies and updates | Deterministic rules: blocked, overdue, deadline at risk (work left > time left), stale (no update for 12h), upstream blocked, waiting on a dependency, workload exceeding time left. Emergency Mode turns on when the deadline is under 48h and a mission is at HIGH risk |
+| **Diagnose** | Finds the likely bottleneck and its downstream impact | The dependency graph picks the **root bottleneck** (the at-risk mission whose own dependencies are done and that blocks the most work). The likely cause comes from its signals and the crew member's **private check-in** answer, using keyword rules or the LLM if `OPENAI_API_KEY` is set |
+| **Intervene** | Suggests a practical recovery action for the Captain to review | A playbook of actions per cause (e.g. unclear API contract → agree a minimal contract while Frontend uses mock data). Each action has steps, a drafted message and a success check. **Nothing happens until the Captain approves** |
+| **Verify** | Checks the next update for evidence the blocker is gone | Resolved when the mission is no longer blocked and progress moved at least 10 points (or it's done) |
+| **Adapt** | If the problem persists, chooses another action | Proposes the next action **not yet tried** for that mission (never the same one twice). When the playbook runs out, it escalates: "Captain decision needed" |
+
+**Privacy and tone:** crew members are shown by call sign only (Orion, Vega, …), alerts are about missions, not people, and there are no scores or rankings. Check-in answers are private to the Captain, and messages are drafted for the Captain to send, never sent automatically.
+
+For how to present it, see [Giving the demo](#giving-the-demo).
+
+### Mission Control API
+
+All under `/api/team`:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/projects` | List projects |
+| `GET` | `/projects/{id}/mission-control` | Everything the page shows: risk, missions + signals, root bottleneck, loop stage, active action, history, timeline |
+| `POST` | `/projects/{id}/analyze` | Detect → Diagnose → propose an action (409 if one is already in progress) |
+| `POST` | `/interventions/{id}/approve` · `/reject` | Captain decision (reject proposes the next action) |
+| `POST` | `/missions/{id}/checkins` | Send a private check-in |
+| `POST` | `/checkins/{id}/answer` | Answer a check-in |
+| `POST` | `/missions/{id}/updates` | Post a real update (`text`, `progress`, `status`); triggers Verify |
+| `POST` | `/missions/{id}/simulate-update` | Demo: `{"outcome": "resolved" \| "still_blocked"}` |
+| `POST` | `/demo/reset` | Reload the demo scenario |
 
 ---
 
@@ -100,6 +250,7 @@ Everything works without configuration, with reduced capability. The backend rea
 | `OPENAI_MODEL` | `backend/.env` | `gpt-4o-mini` | OpenAI model to use |
 | `GITHUB_WEBHOOK_SECRET` | `backend/.env` | a built-in development value | Secret used to verify GitHub webhook signatures. **Set your own random value** before exposing the backend publicly; the built-in default is public in this repository |
 | `WEBHOOK_MAX_CONCURRENCY` / `WEBHOOK_JOB_RETRY_LIMIT` | `backend/.env` | `5` / `3` | Monitoring job limits |
+| `TEAMPULSE_DB_PATH` | `backend/.env` | `backend/teampulse.db` | SQLite file for Mission Control. Created and seeded with the demo project automatically |
 
 Restart the backend after editing `backend/.env`.
 
@@ -134,10 +285,11 @@ npm run lint
 | CORS error in the browser console | Add the frontend's exact origin (e.g. `http://localhost:5176`) to `FRONTEND_ORIGINS` in `backend/.env` and restart the backend |
 | `ModuleNotFoundError: No module named 'app'` | Run `uvicorn` from inside `backend/` |
 | GitHub `403` / rate limit exceeded | Set `GITHUB_TOKEN` in `backend/.env` |
-| Data disappeared | Scans, diagnoses, fixes and verifications are kept **in memory** and are lost when the backend restarts (including `--reload` restarts after code edits). Re-run the analysis |
+| Code checks say a finding or scan wasn't found | The backend keeps scans **in memory**, so a restart (including `--reload` after code edits) forgets them, while the browser still shows the saved results. Click **Run checks again** on the repository. Team room data is saved in SQLite and survives restarts |
+| The team room is in a strange state | Click **Reset demo**, or delete `backend/teampulse.db` and restart the backend |
 | Publishing buttons disabled | `GITHUB_TOKEN` is missing or lacks write access to the repository |
 
-> **Demo data:** the Dashboard, Bug Reports and Frontend/Backend/Security Analysis pages show built-in sample data alongside repositories you analyze. Repository details and bug details pages show real backend results.
+> **No sample data:** every page shows real results. Code check results are saved in the browser (localStorage), so a different browser starts empty.
 
 ---
 
@@ -155,9 +307,10 @@ details imfo/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py                 # FastAPI app, CORS, health check, router registration
-│   │   ├── routes/                 # repositories, diagnosis, fixes, verification, publishing, monitoring
+│   │   ├── routes/                 # team (team room), repositories, diagnosis, fixes, verification, publishing, monitoring
 │   │   ├── schemas/                # Pydantic request/response models
 │   │   ├── services/
+│   │   │   ├── team/               # Mission Control: db, seed, risk_engine, dependency_graph, diagnosis, playbook, recovery_service, simulator
 │   │   │   ├── github_service.py   # GitHub API client and URL validation
 │   │   │   ├── repository_scanner.py
 │   │   │   ├── analysis_engine.py  # Runs all analyzers over a downloaded repo
@@ -174,9 +327,12 @@ details imfo/
 │   └── requirements.txt
 ├── src/
 │   ├── components/                 # layout, dashboard, bugs, repositories, ui
-│   ├── data/                       # demo data + repositoryStore (localStorage)
+│   ├── data/repositoryStore.ts     # code check results saved in localStorage
 │   ├── pages/                      # one file per route
-│   ├── services/api.ts             # typed backend API client
+│   ├── services/api.ts             # typed backend API client (code checks)
+│   ├── services/teamApi.ts         # typed client for the team room
+│   ├── components/mission/         # team room UI: whiteboard, step track, room activity, presenter guide
+│   ├── components/checks/          # code checks UI: findings list, diff view, shared helpers
 │   ├── types/
 │   ├── utils/pdfGenerator.ts
 │   ├── App.tsx                     # routes
@@ -363,13 +519,13 @@ Ruff and Bandit are installed by `backend/requirements.txt`. For JavaScript/Type
 npm install -g eslint
 ```
 
-If an external tool is not installed in the scanner environment, CodeLens AI gracefully skips it and records the limitation in `analysis.warnings` without failing the remaining analyzers.
+If an external tool is not installed in the scanner environment, TeamPulse gracefully skips it and records the limitation in `analysis.warnings` without failing the remaining analyzers.
 
 ---
 
 ## Finding Classification & Lifecycle
 
-CodeLens AI strictly distinguishes between detected issues, potential hypotheses, proposed fixes, and verified fixes.
+TeamPulse strictly distinguishes between detected issues, potential hypotheses, proposed fixes, and verified fixes.
 
 ### Severity Levels
 - `critical`: Severe vulnerabilities such as hardcoded private keys, AWS access tokens, or direct SQL injections.
@@ -392,7 +548,7 @@ CodeLens AI strictly distinguishes between detected issues, potential hypotheses
 
 ## Security Boundaries & Untrusted Code Execution Safeguards
 
-Because public repositories contain untrusted user code, CodeLens AI enforces strict sandbox constraints:
+Because public repositories contain untrusted user code, TeamPulse enforces strict sandbox constraints:
 1. **No Code Execution**: Repository scripts, build commands (`npm run build`, `make`, `setup.py`), and test suites are **never executed**.
 2. **No Dependency Installation**: The backend will never invoke `npm install` or `pip install` against scanned repository packages.
 3. **Isolated Ephemeral Sandbox**: When invoking tools like `Ruff` or `Bandit`, files are written to a strictly isolated temporary sandbox directory (`tempfile.mkdtemp`), scanned with a 15–20 second timeout, and wiped immediately upon scan completion.
@@ -403,23 +559,17 @@ Because public repositories contain untrusted user code, CodeLens AI enforces st
 
 ## How to Test Static Bug Analysis
 
-1. Ensure the backend is running (`uvicorn app.main:app --port 8000` in `backend/`).
-2. Open `http://localhost:5173/` in your browser (or whichever port `npm run dev` printed).
-3. Click **"+ Analyze Repository"**.
-4. Enter any public repository (e.g. `https://github.com/pallets/flask` or `https://github.com/tiangolo/fastapi`).
-5. Click **"Run Static Bug Analysis"**:
-   - The analysis progress bar will display stages: *Retrieving eligible source files*, *Invoking static analyzers*, *Normalizing and deduplicating findings*.
-   - Upon completion, view the live severity breakdown (Critical, High, Medium, Low, Informational), analyzer execution status, and warning disclaimers.
-6. Click **"View Scanned Bug Reports"**:
-   - The **Bug Reports** page will open, displaying the real detected findings alongside a banner showing repository commit info.
-   - Use the **Source filter** ("All", "Real Scanned Findings", "Demo Data") to isolate live analysis findings from demo data.
-   - Filter by **Severity**, **Category**, or **Analyzer**, and inspect exact line ranges, code excerpts, and remediation instructions in the slide-out drawer.
+1. Make sure the backend is running (`uvicorn app.main:app --port 8000` in `backend/`).
+2. Open `http://localhost:5173/repositories` (or whichever port `npm run dev` printed).
+3. Click **Check a repository**, enter a public repository (e.g. `https://github.com/pallets/flask`), and click **Run code checks**.
+4. The repository page opens with the branch, commit, number of files checked, and findings by severity. If an analyzer couldn't run, its warning is listed.
+5. Open **Findings** in the sidebar to see findings from every checked repository. Filter by severity or search by title, file or rule, then open one for the code excerpt and suggested direction.
 
 ---
 
 ## Step 5: AI-Assisted Root-Cause Diagnosis & Cross-Layer Bug Correlation
 
-Step 5 upgrades CodeLens AI with deep diagnostic reasoning that bridges analyzer findings across frontend and backend boundaries.
+Step 5 upgrades TeamPulse with deep diagnostic reasoning that bridges analyzer findings across frontend and backend boundaries.
 
 ### AI Provider Configuration & Environment Variables
 
@@ -432,7 +582,7 @@ OPENAI_MODEL=gpt-4o-mini
 ```
 
 > [!NOTE]
-> **Graceful Offline / Unconfigured Fallback**: If `OPENAI_API_KEY` is not set or left as a placeholder, CodeLens AI automatically falls back to deterministic static reasoning and records the limitation in the report without crashing or fabricating responses.
+> **Graceful Offline / Unconfigured Fallback**: If `OPENAI_API_KEY` is not set or left as a placeholder, TeamPulse automatically falls back to deterministic static reasoning and records the limitation in the report without crashing or fabricating responses.
 
 ### Diagnosis Endpoints
 
@@ -722,7 +872,7 @@ Tests across inspection, repository scanning, AST static analysis, AI diagnosis,
 ## Step 8: GitHub Branch Creation & Pull Request Preparation
 
 ### Objective & Architecture
-Step 8 extends CodeLens AI with a secure publishing lifecycle that enables developers to take explicitly approved and verified code patches, commit them to dedicated, isolated Git branches (`codelens/fix-<finding-id>-<slug>`), and prepare comprehensive GitHub Pull Requests for human review without ever modifying default or protected repository branches directly.
+Step 8 extends TeamPulse with a secure publishing lifecycle that enables developers to take explicitly approved and verified code patches, commit them to dedicated, isolated Git branches (`codelens/fix-<finding-id>-<slug>`), and prepare comprehensive GitHub Pull Requests for human review without ever modifying default or protected repository branches directly.
 
 ```
 ┌────────────────────────┐      ┌─────────────────────────┐      ┌─────────────────────────┐
@@ -737,13 +887,13 @@ Step 8 extends CodeLens AI with a secure publishing lifecycle that enables devel
 1. **Backend-Only Credentials**: GitHub Personal Access Tokens (PAT) and GitHub App tokens reside exclusively in the backend runtime environment (`GITHUB_TOKEN` or `GITHUB_ACCESS_TOKEN`). Tokens are never returned in API payloads, logs, error messages, or transmitted to the browser.
 2. **Minimum Privileges**: Authentication requires only repository contents and pull request write scopes (`contents:write`, `pull_requests:write`).
 3. **Strict Default Branch Protection**: The publishing service strictly prohibits committing directly to `main`, `master`, `develop`, or the repository's base branch.
-4. **No Automatic Merges**: CodeLens AI never merges pull requests. Pull requests are prepared solely for human review and continuous integration validation.
+4. **No Automatic Merges**: TeamPulse never merges pull requests. Pull requests are prepared solely for human review and continuous integration validation.
 5. **Pre-Publishing Eligibility Gate**: Branch publishing is blocked unless:
    - The fix proposal exists.
    - The user has explicitly approved the proposal (`status == "approved"`).
    - The patch has cleanly passed isolated verification (`patch_application_status == "applied"` and `static_checks_status == "passed"`).
    - The target branch exists on GitHub and its HEAD commit matches the analyzed source commit (divergence prevents blind overwrites).
-6. **Branch Overwrite Prevention**: If an identically named branch already exists, CodeLens AI either flags a conflict (409) or generates a collision-safe suffix to prevent overwriting unrelated work.
+6. **Branch Overwrite Prevention**: If an identically named branch already exists, TeamPulse either flags a conflict (409) or generates a collision-safe suffix to prevent overwriting unrelated work.
 
 ### Backend Endpoints
 
@@ -754,13 +904,13 @@ Step 8 extends CodeLens AI with a secure publishing lifecycle that enables devel
 | `POST` | `/api/fixes/{fix_id}/publish-branch` | Creates an isolated branch (`codelens/fix-...`) and commits the approved patch using GitHub REST APIs. |
 | `GET` | `/api/fixes/{fix_id}/publish-status` | Returns the current branch and pull request tracking status for a fix proposal. |
 | `POST` | `/api/fixes/{fix_id}/create-pull-request` | Opens a pull request on GitHub with structured defect diagnosis and verification outcomes. Requires `confirm_creation=True`. |
-| `GET` | `/api/pull-requests/{pull_request_id}` | Retrieves details of a specific pull request tracked by CodeLens AI. |
+| `GET` | `/api/pull-requests/{pull_request_id}` | Retrieves details of a specific pull request tracked by TeamPulse. |
 | `GET` | `/api/repositories/{owner}/{repo}/pull-requests` | Lists all pull requests created for a given repository. |
 
 ### Pull Request Description Structure
 Pull requests automatically include a structured Markdown body generated by `PRDescriptionBuilder`:
 - **Summary**: Defect rule ID, category, severity, and target location.
-- **Root Cause Diagnosis**: Architectural and code-level root cause explanation synthesized by CodeLens AI.
+- **Root Cause Diagnosis**: Architectural and code-level root cause explanation synthesized by TeamPulse.
 - **Proposed Changes**: Exact file modified and diff statistics (`+additions / -deletions`).
 - **Automated Verification Results**: Isolated sandbox outcome, static check status, test execution results, and resolved defects count.
 - **Potential Regressions & Review Notes**: Side-effects and developer precautions.
@@ -774,13 +924,13 @@ Add your GitHub token to `backend/.env`:
 ```env
 GITHUB_TOKEN=ghp_your_token_here
 ```
-*(If no token is supplied, CodeLens AI displays an unconfigured connection status and informs the developer of the setup instructions without pretending the connection succeeded).*
+*(If no token is supplied, TeamPulse displays an unconfigured connection status and informs the developer of the setup instructions without pretending the connection succeeded).*
 
 ---
 
 ## Step 9: Live GitHub Monitoring and Automatic Code Analysis
 
-CodeLens AI provides live GitHub repository monitoring. When developers push code or update pull requests, CodeLens AI securely verifies the webhook delivery, extracts changed files, triggers static analysis on the exact commit SHA, computes a findings diff (new vs resolved vs persistent), and updates the dashboard in real time.
+TeamPulse provides live GitHub repository monitoring. When developers push code or update pull requests, TeamPulse securely verifies the webhook delivery, extracts changed files, triggers static analysis on the exact commit SHA, computes a findings diff (new vs resolved vs persistent), and records the result, available through the monitoring API.
 
 ### 1. Webhook Security Architecture
 - **Signature Verification**: Verifies `X-Hub-Signature-256` using constant-time HMAC-SHA256 comparison (`hmac.compare_digest`) with the shared `GITHUB_WEBHOOK_SECRET`. Payloads with invalid or missing signatures are rejected immediately with 401 Unauthorized.
@@ -836,7 +986,7 @@ smee --url https://smee.io/your-unique-channel --target http://127.0.0.1:8000/ap
 3. **Content type**: `application/json`.
 4. **Secret**: the same value as `GITHUB_WEBHOOK_SECRET`.
 5. **Which events**: Select **Let me select individual events** → Check **Pushes** and **Pull requests**.
-6. Click **Add webhook**. GitHub will send an initial `ping` event. CodeLens AI will acknowledge it and mark the repository webhook status as **Connected**.
+6. Click **Add webhook**. GitHub will send an initial `ping` event. TeamPulse will acknowledge it and mark the repository webhook status as **Connected**.
 
 #### D. Run Backend & Frontend
 Start both as described in [Quick Start](#quick-start).
@@ -851,8 +1001,10 @@ pytest -v tests/test_monitoring.py
 #### F. Troubleshooting
 - **401 Invalid Signature**: Verify the secret entered in GitHub Webhook settings exactly matches `GITHUB_WEBHOOK_SECRET`.
 - **400 Missing Delivery/Event**: Ensure your webhook forwarder preserves `X-Hub-Signature-256`, `X-GitHub-Event`, and `X-GitHub-Delivery` headers.
-- **Skipped Analysis Event**: Check the repository's monitored branches in the CodeLens UI. If the push occurred on a feature branch and `analyze_all_branches` is disabled, the push is logged but not analyzed.
-- **Retrying Failed Jobs**: In the repository **Live Monitoring** tab, failed jobs display a **Retry** button that re-enqueues the analysis with exponential backoff.
+- **Skipped Analysis Event**: Check the repository's monitored branches with `GET /api/repositories/{owner}/{repo}/monitoring`. If the push occurred on a feature branch and `analyze_all_branches` is disabled, the push is logged but not analyzed.
+- **Retrying Failed Jobs**: `POST /api/analysis-jobs/{job_id}/retry` re-enqueues a failed analysis with exponential backoff.
+
+> Monitoring has no screen in the app; use the API endpoints above (or the interactive docs at `/docs`).
 
 
 

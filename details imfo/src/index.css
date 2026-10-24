@@ -1,39 +1,103 @@
+@import '@fontsource-variable/figtree';
+@import '@fontsource-variable/bricolage-grotesque';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Palette: a project room. Pale wall, white paper, dark ink, and whiteboard markers
+  (blue for actions; red, amber, green only for risk). Values are RGB triplets for Tailwind.
+*/
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --wall: 242 244 243;
+  --paper: 255 255 255;
+  --sunken: 233 237 235;
+  --line: 218 224 221;
+  --line-strong: 190 199 194;
+  --ink: 23 32 28;
+  --ink-soft: 52 63 58;
+  --pencil: 88 99 93;
+  --faint: 112 124 118;
+  --marker: 36 80 216;
+  --marker-strong: 27 63 176;
+  --red: 196 52 42;
+  --amber: 154 100 0;
+  --green: 28 122 78;
+  --sky: 21 112 140;
 }
 
 body {
   margin: 0;
-  background-color: #09090B;
-  color: #FAFAFA;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: rgb(var(--wall));
+  color: rgb(var(--ink));
+  font-family: 'Figtree Variable', system-ui, sans-serif;
+  font-feature-settings: 'tnum' 1;
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-/* Custom modern scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+::selection {
+  background: rgb(var(--marker) / 0.18);
 }
 
-::-webkit-scrollbar-track {
-  background: #0C0C0F;
+:focus-visible {
+  outline: 2px solid rgb(var(--marker));
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272A;
+  background: rgb(var(--line-strong));
   border-radius: 9999px;
+  border: 2px solid rgb(var(--wall));
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #3F3F46;
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-/* Subtle code typography */
-code, pre {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+/* Presenter guide: the one attention-drawing motion in the app */
+@keyframes guide-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--marker) / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(var(--marker) / 0);
+  }
+}
+
+.guide-target {
+  animation: guide-pulse 1.6s ease-in-out infinite;
+  border-radius: 0.6rem;
+}
+
+/* Hand-drawn circle around the blocker on the whiteboard */
+@keyframes draw-circle {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.marker-circle path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: draw-circle 0.9s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-target,
+  .marker-circle path {
+    animation: none;
+  }
 }

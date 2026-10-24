@@ -45,23 +45,23 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         {toasts.map((item) => (
           <div
             key={item.id}
-            className="pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl bg-[#18181B] border border-[#27272A] shadow-xl text-sm animate-in fade-in slide-in-from-bottom-2 duration-200"
+            className="pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl bg-paper border border-line shadow-[0_12px_32px_-12px_rgb(23_32_28/0.3)] text-sm"
           >
             <div className="mt-0.5 shrink-0">
-              {item.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-              {item.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-400" />}
-              {item.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-400" />}
-              {item.type === 'info' && <Info className="w-4 h-4 text-purple-400" />}
+              {item.type === 'success' && <CheckCircle2 className="w-4 h-4 text-green" />}
+              {item.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber" />}
+              {item.type === 'error' && <AlertCircle className="w-4 h-4 text-red" />}
+              {item.type === 'info' && <Info className="w-4 h-4 text-marker" />}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-[#FAFAFA] leading-tight">{item.message}</p>
+              <p className="font-medium text-ink leading-tight">{item.message}</p>
               {item.description && (
-                <p className="mt-1 text-xs text-[#A1A1AA] leading-relaxed">{item.description}</p>
+                <p className="mt-1 text-xs text-pencil leading-relaxed">{item.description}</p>
               )}
             </div>
             <button
               onClick={() => removeToast(item.id)}
-              className="text-[#A1A1AA] hover:text-[#FAFAFA] p-0.5 rounded transition-colors"
+              className="text-pencil hover:text-ink p-0.5 rounded transition-colors"
               aria-label="Close notification"
             >
               <X className="w-4 h-4" />

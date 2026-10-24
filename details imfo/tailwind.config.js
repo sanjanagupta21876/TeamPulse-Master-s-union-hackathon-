@@ -1,47 +1,32 @@
 /** @type {import('tailwindcss').Config} */
+
+// Colors are CSS variables (see src/index.css) so opacity modifiers like `bg-red/10` keep working.
+const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  darkMode: 'class',
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        background: {
-          DEFAULT: '#09090B',
-          sidebar: '#0C0C0F',
-          card: '#111114',
-          secondary: '#18181B',
-        },
-        foreground: {
-          DEFAULT: '#FAFAFA',
-          muted: '#A1A1AA',
-        },
-        border: {
-          DEFAULT: '#27272A',
-        },
-        accent: {
-          DEFAULT: '#8B5CF6',
-          hover: '#7C3AED',
-          light: '#A78BFA',
-          subtle: 'rgba(139, 92, 246, 0.12)',
-        },
-        status: {
-          success: '#22C55E',
-          warning: '#F59E0B',
-          error: '#EF4444',
-          info: '#3B82F6',
-        }
+        wall: token('wall'),
+        paper: token('paper'),
+        sunken: token('sunken'),
+        line: { DEFAULT: token('line'), strong: token('line-strong') },
+        ink: { DEFAULT: token('ink'), soft: token('ink-soft') },
+        pencil: token('pencil'),
+        faint: token('faint'),
+        marker: { DEFAULT: token('marker'), strong: token('marker-strong') },
+        red: token('red'),
+        amber: token('amber'),
+        green: token('green'),
+        sky: token('sky'),
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
+        sans: ['"Figtree Variable"', 'system-ui', 'sans-serif'],
+        display: ['"Bricolage Grotesque Variable"', '"Figtree Variable"', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
-      borderRadius: {
-        'card': '12px',
-      }
     },
   },
   plugins: [],
-}
+};

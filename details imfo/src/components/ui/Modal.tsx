@@ -60,7 +60,7 @@ export const Modal: React.FC<ModalProps> = ({
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-ink/30 transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -68,16 +68,16 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Dialog */}
       <div
         ref={modalRef}
-        className={`relative w-full ${maxWidthStyles[maxWidth]} bg-[#111114] border border-[#27272A] rounded-2xl shadow-2xl overflow-hidden z-10 transition-all flex flex-col max-h-[90vh]`}
+        className={`relative w-full ${maxWidthStyles[maxWidth]} bg-paper border border-line rounded-2xl shadow-[0_24px_60px_-20px_rgb(23_32_28/0.35)] overflow-hidden z-10 transition-all flex flex-col max-h-[90vh]`}
       >
         {/* Header */}
-        <div className="px-6 py-5 border-b border-[#27272A] flex items-start justify-between gap-4">
+        <div className="px-6 py-5 border-b border-line flex items-start justify-between gap-4">
           <div>
-            <h2 id="modal-title" className="text-lg font-semibold text-[#FAFAFA] leading-tight">
+            <h2 id="modal-title" className="font-display text-xl font-semibold text-ink leading-tight">
               {title}
             </h2>
             {description && (
-              <p className="mt-1 text-xs text-[#A1A1AA] leading-relaxed">
+              <p className="mt-1 text-xs text-pencil leading-relaxed">
                 {description}
               </p>
             )}
@@ -85,7 +85,7 @@ export const Modal: React.FC<ModalProps> = ({
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="text-[#A1A1AA] hover:text-[#FAFAFA] p-1.5 rounded-lg hover:bg-[#18181B] transition-colors -mr-1"
+            className="text-pencil hover:text-ink p-1.5 rounded-lg hover:bg-sunken transition-colors -mr-1"
           >
             <X className="w-5 h-5" />
           </button>

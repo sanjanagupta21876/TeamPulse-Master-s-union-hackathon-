@@ -278,7 +278,7 @@ async def test_verify_comment_only_fix_fails_and_ignores_other_files():
     original = "def parse(x):\n    try:\n        return int(x)\n    except Exception:\n        pass\n"
     proposed = (
         "def parse(x):\n    try:\n        return int(x)\n"
-        "    # CodeLens AI TODO (PY-ERR-002): handle the error\n"
+        "    # TeamPulse TODO (PY-ERR-002): handle the error\n"
         "    except Exception:\n        pass\n"
     )
     _, proposal = seed_scan_and_proposal(

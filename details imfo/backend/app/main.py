@@ -12,6 +12,8 @@ from app.routes.fixes import router as fixes_router
 from app.routes.verification import router as verification_router
 from app.routes.publishing import router as publishing_router
 from app.routes.monitoring import router as monitoring_router
+from app.routes.team import router as team_router
+from app.services.team import ensure_seeded
 
 load_dotenv()
 
@@ -28,6 +30,7 @@ def get_allowed_origins() -> List[str]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup tasks
+    ensure_seeded()
     yield
     # Shutdown tasks
 
@@ -70,6 +73,7 @@ app.include_router(fixes_router)
 app.include_router(verification_router)
 app.include_router(publishing_router)
 app.include_router(monitoring_router)
+app.include_router(team_router)
 
 
 # Global Exception Handler for consistent error shape

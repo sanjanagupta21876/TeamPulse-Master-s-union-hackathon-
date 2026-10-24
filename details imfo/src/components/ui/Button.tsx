@@ -24,7 +24,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#09090B] disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
+    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-wall disabled:opacity-50 disabled:cursor-not-allowed select-none';
 
     const sizeStyles = {
       sm: 'text-xs px-2.5 py-1.5 gap-1.5',
@@ -33,12 +33,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const variantStyles = {
-      primary: 'bg-[#8B5CF6] hover:bg-[#7C3AED] text-white shadow-sm focus:ring-[#8B5CF6]',
-      secondary: 'bg-[#18181B] hover:bg-[#27272A] text-[#FAFAFA] border border-[#27272A] focus:ring-[#27272A]',
-      outline: 'bg-transparent hover:bg-[#18181B] text-[#FAFAFA] border border-[#27272A] focus:ring-[#27272A]',
-      ghost: 'bg-transparent hover:bg-[#18181B] text-[#A1A1AA] hover:text-[#FAFAFA] focus:ring-[#27272A]',
-      danger: 'bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/30 hover:bg-[#EF4444]/25 focus:ring-[#EF4444]',
-      success: 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30 hover:bg-[#22C55E]/25 focus:ring-[#22C55E]',
+      primary: 'bg-marker hover:bg-marker-strong text-white shadow-[0_1px_0_rgb(23_32_28/0.15)] focus:ring-marker/40',
+      secondary: 'bg-paper hover:bg-sunken text-ink border border-line-strong/70 focus:ring-line-strong',
+      outline: 'bg-transparent hover:bg-paper text-ink border border-line-strong/70 focus:ring-line-strong',
+      ghost: 'bg-transparent hover:bg-sunken text-pencil hover:text-ink focus:ring-line-strong',
+      danger: 'bg-paper text-red border border-red/40 hover:bg-red/5 focus:ring-red/30',
+      success: 'bg-green text-white hover:bg-green/90 focus:ring-green/30',
     };
 
     return (

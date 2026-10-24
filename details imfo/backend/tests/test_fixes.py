@@ -281,7 +281,7 @@ def test_fallback_patch_does_not_rewrite_python_equality():
         _fallback_finding("src/app.py", "PY-ERR-002"), content
     )
     assert "===" not in output.proposed_content
-    assert "# CodeLens AI TODO (PY-ERR-002)" in output.proposed_content
+    assert "# TeamPulse TODO (PY-ERR-002)" in output.proposed_content
 
 
 def test_fallback_patch_uses_js_comment_syntax():
@@ -290,7 +290,7 @@ def test_fallback_patch_uses_js_comment_syntax():
     output = PatchGenerator()._generate_deterministic_fallback_patch(
         _fallback_finding("src/app.ts", "JS-SEC-002"), content
     )
-    assert output.proposed_content.startswith("// CodeLens AI TODO (JS-SEC-002)")
+    assert output.proposed_content.startswith("// TeamPulse TODO (JS-SEC-002)")
     assert "#" not in output.proposed_content
 
 

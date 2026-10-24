@@ -159,7 +159,7 @@ Strict Rules:
             elif is_python or is_js:
                 indent = " " * (len(target_line) - len(target_line.lstrip()))
                 marker = "#" if is_python else "//"
-                comment = f"{indent}{marker} CodeLens AI TODO ({finding.rule_id}): {finding.remediation}\n"
+                comment = f"{indent}{marker} TeamPulse TODO ({finding.rule_id}): {finding.remediation}\n"
                 lines.insert(idx, comment)
                 explanation = (
                     f"No safe automatic fix exists for {finding.rule_id}; inserted a review comment only. "
