@@ -269,3 +269,58 @@ def test_workspace_manager_lifecycle_cleanup():
     cleaned = mgr.clean_workspace(ws)
     assert cleaned is True
     assert not os.path.exists(ws)
+
+
+@pytest.mark.asyncio
+async def test_verify_comment_only_fix_fails_and_ignores_other_files():
+    """A patch that leaves the target finding in place must not verify, and findings in
+    untouched files must not be reported as regressions introduced by the patch."""
+    original = "def parse(x):\n    try:\n        return int(x)\n    except Exception:\n        pass\n"
+    proposed = (
+        "def parse(x):\n    try:\n        return int(x)\n"
+        "    # CodeLens AI TODO (PY-ERR-002): handle the error\n"
+        "    except Exception:\n        pass\n"
+    )
+    _, proposal = seed_scan_and_proposal(
+        file_path="app/parse.py", original_content=original, proposed_content=proposed
+    )
+    finding = Finding(
+        id=proposal.finding_id,
+        repository=proposal.repository_id,
+        branch="main",
+        commit_sha=proposal.commit_sha,
+        file_path="app/parse.py",
+        start_line=4,
+        end_line=4,
+        severity="medium",
+        category="reliability",
+        rule_id="PY-ERR-002",
+        title="Silently Suppressed Exception (pass)",
+        description="An exception handler block contains only 'pass'.",
+        analyzer="python_ast",
+        remediation="Log or handle the exception.",
+    )
+    diagnosis_storage.save_scan(
+        scan_id=proposal.scan_id,
+        repository=proposal.repository_id,
+        branch="main",
+        commit_sha=proposal.commit_sha,
+        findings=[finding],
+        files={
+            "app/parse.py": original,
+            # Pre-existing issue in an unrelated file
+            "app/runner.py": "import subprocess\nsubprocess.call('ls', shell=True)\n",
+        },
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            f"/api/fixes/{proposal.id}/verify",
+            json={"run_tests": False, "run_static_checks": True},
+        )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "failed"
+    assert [f["id"] for f in data["remaining_findings"]] == [proposal.finding_id]
+    assert all(f["file_path"] == "app/parse.py" for f in data["newly_introduced_findings"])

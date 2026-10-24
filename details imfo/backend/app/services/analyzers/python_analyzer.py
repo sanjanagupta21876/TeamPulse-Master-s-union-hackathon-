@@ -9,6 +9,7 @@ from app.schemas.bug_report import Finding
 from app.services.analyzers.base_analyzer import BaseAnalyzer
 from app.services.rules import generate_finding_id, get_safe_code_excerpt
 from app.services.rules.python_rules import scan_python_ast_rules
+from app.utils.file_filters import classify_file
 
 
 class PythonAstAnalyzer(BaseAnalyzer):
@@ -114,7 +115,7 @@ class RuffAnalyzer(BaseAnalyzer):
         for issue in raw_issues:
             raw_filename = issue.get("filename", "")
             # Normalize to relative path
-            rel_path = os.path.relpath(raw_filename, work_dir).replace("\\", "/")
+            rel_path = os.path.relpath(os.path.join(work_dir, raw_filename), work_dir).replace("\\", "/")
             rule_code = issue.get("code") or "RUFF-000"
             message = issue.get("message", "Lint warning reported by Ruff")
             location = issue.get("location", {})
@@ -235,8 +236,11 @@ class BanditAnalyzer(BaseAnalyzer):
 
         for item in raw_results:
             raw_filename = item.get("filename", "")
-            rel_path = os.path.relpath(raw_filename, work_dir).replace("\\", "/")
+            rel_path = os.path.relpath(os.path.join(work_dir, raw_filename), work_dir).replace("\\", "/")
             test_id = item.get("test_id", "B000")
+            # B101 (assert used) is expected in test suites and only adds noise there
+            if test_id == "B101" and classify_file(rel_path) == "test":
+                continue
             issue_text = item.get("issue_text", "Security issue detected by Bandit")
             line_number = item.get("line_number", 1)
             line_range = item.get("line_range", [line_number])

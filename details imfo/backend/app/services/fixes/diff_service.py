@@ -22,15 +22,18 @@ class DiffService:
         orig_lines = original_content.splitlines(keepends=True)
         prop_lines = proposed_content.splitlines(keepends=True)
 
-        raw_diff_lines = list(
-            difflib.unified_diff(
+        # Source lines keep their own line endings, so strip them here to avoid
+        # doubled newlines when the diff lines are joined below.
+        raw_diff_lines = [
+            line.rstrip("\r\n")
+            for line in difflib.unified_diff(
                 orig_lines,
                 prop_lines,
                 fromfile=f"a/{file_path}",
                 tofile=f"b/{file_path}",
                 lineterm="",
             )
-        )
+        ]
 
         unified_diff_str = "\n".join(raw_diff_lines)
 

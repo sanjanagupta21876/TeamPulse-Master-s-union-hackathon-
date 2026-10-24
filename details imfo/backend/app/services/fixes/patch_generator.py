@@ -126,38 +126,46 @@ Strict Rules:
         regressions = ["Verify function behavior against regression test suite."]
         tests = [f"Unit test asserting remediation of {finding.rule_id} at line {finding.start_line}."]
 
+        is_python = finding.file_path.endswith((".py", ".pyi"))
+        is_js = finding.file_path.endswith((".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"))
+
         if idx < len(lines):
             target_line = lines[idx]
 
             # Rule 1: Bare except (PY-ERR-001)
-            if "except:" in target_line and (finding.rule_id == "PY-ERR-001" or "bare" in finding.title.lower()):
+            if is_python and "except:" in target_line and (finding.rule_id == "PY-ERR-001" or "bare" in finding.title.lower()):
                 lines[idx] = target_line.replace("except:", "except Exception as exc:")
                 explanation = "Replaced bare 'except:' clause with explicit 'except Exception as exc:' to prevent swallowing system-exiting exceptions."
                 tests.append("Test that KeyboardInterrupt and SystemExit are not captured.")
 
             # Rule 2: Subprocess shell=True (PY-SEC-001)
-            elif "shell=True" in target_line:
+            elif is_python and "shell=True" in target_line:
                 lines[idx] = target_line.replace("shell=True", "shell=False")
                 explanation = "Set 'shell=False' in subprocess invocation to mitigate command injection risks."
                 tests.append("Test command execution with argument list instead of shell string.")
 
             # Rule 3: DOM XSS innerHTML (JS-SEC-001)
-            elif "innerHTML" in target_line:
+            elif is_js and finding.rule_id == "JS-SEC-001" and "innerHTML" in target_line:
                 lines[idx] = target_line.replace("innerHTML", "textContent")
                 explanation = "Replaced 'innerHTML' assignment with safe 'textContent' to prevent DOM cross-site scripting."
                 tests.append("Verify element content rendering with special characters.")
 
             # Rule 4: Loose equality (JS-CORR-001)
-            elif " == " in target_line:
+            elif is_js and finding.rule_id == "JS-CORR-001" and " == " in target_line:
                 lines[idx] = target_line.replace(" == ", " === ")
                 explanation = "Replaced loose equality comparison (==) with strict equality (===) to avoid type coercion bugs."
 
-            # Rule 5: Generic remediation comment placeholder
-            else:
+            # Rule 5: No safe automatic fix; insert a guidance comment in the file's own comment syntax
+            elif is_python or is_js:
                 indent = " " * (len(target_line) - len(target_line.lstrip()))
-                comment = f"{indent}# CodeLens AI Proposed Fix for {finding.rule_id}: {finding.remediation}\n"
+                marker = "#" if is_python else "//"
+                comment = f"{indent}{marker} CodeLens AI TODO ({finding.rule_id}): {finding.remediation}\n"
                 lines.insert(idx, comment)
-                explanation = f"Inserted targeted remediation guidance: {finding.remediation}"
+                explanation = (
+                    f"No safe automatic fix exists for {finding.rule_id}; inserted a review comment only. "
+                    f"Manual change required: {finding.remediation}"
+                )
+                assumptions.append("This proposal does not change program behavior and will not resolve the finding.")
 
         proposed_content = "".join(lines)
         return LLMFixOutput(

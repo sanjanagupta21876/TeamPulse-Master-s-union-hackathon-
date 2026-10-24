@@ -1,171 +1,189 @@
 # CodeLens AI — Code Debugging & GitHub Repository Analysis Platform
 
-CodeLens AI is an AI-powered code intelligence and repository analysis platform designed for modern software engineering teams. In Step 2, the frontend is connected to a FastAPI backend service capable of retrieving, validating, and inspecting public GitHub repositories in real time.
+CodeLens AI analyzes public GitHub repositories for bugs and security issues, explains their root causes, proposes fixes, checks those fixes in a throwaway workspace, and can open a pull request with the approved change. It is a React + Vite frontend talking to a FastAPI backend (the backend's API title is "TeamPulse API").
+
+**Pipeline:** inspect repo → analyze (AST rules, Ruff, Bandit, secret scanner, optional ESLint) → diagnose root cause → propose fix → approve → verify in isolated workspace → publish branch / pull request. Monitoring can rerun the analysis automatically on GitHub pushes via webhooks.
+
+---
+
+## Quick Start
+
+You need two terminals: one for the backend (port `8000`) and one for the frontend (port `5173`).
+
+### Prerequisites
+
+| Tool | Version | Check with |
+|------|---------|------------|
+| Python | 3.10 or newer | `python3 --version` (Windows: `python --version`) |
+| Node.js | 18 or newer (20+ recommended) | `node --version` |
+| npm | comes with Node.js | `npm --version` |
+| git | any recent version | `git --version` |
+
+An internet connection is required: the backend downloads repository files from the GitHub API.
+
+> **Note:** the project folder is named `details imfo` (with a space). Always wrap paths in quotes, e.g. `cd "details imfo"`.
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url> TeamPulse
+cd "TeamPulse/details imfo"
+```
+
+### 2. Start the backend (terminal 1)
+
+**macOS / Linux:**
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env          # optional, see "Configuration" below
+uvicorn app.main:app --reload --port 8000
+```
+
+**Windows (PowerShell):**
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1  # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+pip install -r requirements.txt
+Copy-Item .env.example .env   # optional, see "Configuration" below
+uvicorn app.main:app --reload --port 8000
+```
+
+Check that it is running: open <http://localhost:8000/api/health>. It should return `{"status":"ok","service":"TeamPulse API"}`. Interactive API docs are at <http://localhost:8000/docs>.
+
+> Run `uvicorn` from inside the `backend/` folder. Running it from anywhere else fails with `ModuleNotFoundError: No module named 'app'`.
+
+### 3. Start the frontend (terminal 2)
+
+From the `details imfo` folder (the one containing `package.json`):
+
+```bash
+npm install
+npm run dev
+```
+
+Open the URL Vite prints, normally <http://localhost:5173>. If port 5173 is taken, Vite picks 5174 or 5175; those are already allowed by the backend's CORS settings.
+
+The frontend calls `http://localhost:8000` by default. To point it elsewhere, copy `.env.example` to `.env` in the same folder and change `VITE_API_BASE_URL`, then restart `npm run dev`.
+
+### 4. Try it
+
+1. Go to **Repositories** → **Analyze Repository**.
+2. Paste a public repo URL, e.g. `https://github.com/pallets/itsdangerous`, and start the analysis.
+3. Open the repository, then open a finding to run **Diagnose**, **Generate Fix**, **Approve** and **Verify**.
+
+Or from the command line:
+
+```bash
+curl -X POST http://localhost:8000/api/repositories/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"repository_url": "https://github.com/pallets/itsdangerous"}'
+```
+
+---
+
+## Configuration
+
+Everything works without configuration, with reduced capability. The backend reads `backend/.env`; the frontend reads `.env` in the `details imfo` folder.
+
+| Variable | File | Default | What it does |
+|----------|------|---------|--------------|
+| `VITE_API_BASE_URL` | `.env` | `http://localhost:8000` | Backend URL used by the frontend |
+| `FRONTEND_ORIGINS` | `backend/.env` | localhost ports 5173–5175, 3000 | Comma-separated origins allowed by CORS. Add yours if the frontend runs elsewhere |
+| `GITHUB_TOKEN` | `backend/.env` | not set | Raises the GitHub API rate limit from 60 to 5,000 requests/hour, and is **required** for publishing branches and pull requests (needs `repo` scope) |
+| `OPENAI_API_KEY` | `backend/.env` | not set | Enables AI diagnosis and AI-generated fixes. Without it, the backend uses rule-based templates, which only fix a few patterns automatically (bare `except:`, `shell=True`, `innerHTML`, `==` in JS). For other findings it inserts a TODO comment, and verification correctly reports that fix as **failed** |
+| `OPENAI_MODEL` | `backend/.env` | `gpt-4o-mini` | OpenAI model to use |
+| `GITHUB_WEBHOOK_SECRET` | `backend/.env` | a built-in development value | Secret used to verify GitHub webhook signatures. **Set your own random value** before exposing the backend publicly; the built-in default is public in this repository |
+| `WEBHOOK_MAX_CONCURRENCY` / `WEBHOOK_JOB_RETRY_LIMIT` | `backend/.env` | `5` / `3` | Monitoring job limits |
+
+Restart the backend after editing `backend/.env`.
+
+**Optional JavaScript analysis:** install ESLint globally (`npm install -g eslint`) to add ESLint findings for JS/TS repositories. If it is missing, the analyzer is skipped and a warning is recorded. Ruff and Bandit are installed by `requirements.txt`.
+
+---
+
+## Running Tests
+
+**Backend** (all GitHub and OpenAI calls are mocked; no accounts needed):
+
+```bash
+cd backend
+source .venv/bin/activate      # Windows: .\.venv\Scripts\Activate.ps1
+pytest -q
+```
+
+**Frontend** (type check + production build, then lint):
+
+```bash
+npm run build
+npm run lint
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| Frontend shows "backend offline" / network errors | Make sure the backend is running on port 8000 and `VITE_API_BASE_URL` matches. Restart `npm run dev` after changing `.env` |
+| CORS error in the browser console | Add the frontend's exact origin (e.g. `http://localhost:5176`) to `FRONTEND_ORIGINS` in `backend/.env` and restart the backend |
+| `ModuleNotFoundError: No module named 'app'` | Run `uvicorn` from inside `backend/` |
+| GitHub `403` / rate limit exceeded | Set `GITHUB_TOKEN` in `backend/.env` |
+| Data disappeared | Scans, diagnoses, fixes and verifications are kept **in memory** and are lost when the backend restarts (including `--reload` restarts after code edits). Re-run the analysis |
+| Publishing buttons disabled | `GITHUB_TOKEN` is missing or lacks write access to the repository |
+
+> **Demo data:** the Dashboard, Bug Reports and Frontend/Backend/Security Analysis pages show built-in sample data alongside repositories you analyze. Repository details and bug details pages show real backend results.
 
 ---
 
 ## Technology Stack
 
-### Frontend
-- **Framework**: React 19 + TypeScript
-- **Bundler & Dev Server**: Vite
-- **Styling**: Tailwind CSS (custom dark-mode developer design system)
-- **Routing**: React Router v7
-- **Icons**: Lucide React
-- **HTTP Client**: Reusable Fetch-based API client with typed schemas
-
-### Backend
-- **Framework**: Python 3.10+ & FastAPI
-- **ASGI Server**: Uvicorn
-- **HTTP Client**: `httpx` (asynchronous HTTP with redirect support and timeouts)
-- **Validation & Serialization**: Pydantic v2
-- **Testing**: `pytest`, `pytest-asyncio`, `respx` (for HTTP mocking)
-
----
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, React Router 7, Lucide icons, jsPDF (report export)
+- **Backend:** Python 3.10+, FastAPI, Uvicorn, httpx, Pydantic v2, OpenAI SDK (optional)
+- **Analyzers:** built-in Python AST and JS rules, secret scanner, Ruff, Bandit, ESLint (optional)
+- **Testing:** pytest, pytest-asyncio, respx
 
 ## Folder Structure
 
 ```
 details imfo/
 ├── backend/
-│   ├── .venv/                      # Python virtual environment
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py                 # FastAPI application, CORS, and health check
-│   │   ├── routes/
-│   │   │   ├── __init__.py
-│   │   │   └── repositories.py     # POST /api/repositories/inspect & /scan endpoints
-│   │   ├── schemas/
-│   │   │   ├── __init__.py
-│   │   │   ├── repository.py       # Pydantic models for repository metadata & errors
-│   │   │   └── scan.py             # Pydantic models for scan request, discovery & response
+│   │   ├── main.py                 # FastAPI app, CORS, health check, router registration
+│   │   ├── routes/                 # repositories, diagnosis, fixes, verification, publishing, monitoring
+│   │   ├── schemas/                # Pydantic request/response models
 │   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   ├── github_service.py   # Async GitHub API service & URL security validator
-│   │   │   └── repository_scanner.py # Repository file discovery & classification service
-│   │   └── utils/
-│   │       ├── __init__.py
-│   │       └── file_filters.py     # Directory exclusion, secret detection & classification
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   ├── test_inspect.py         # Pytest metadata inspection suite with respx mocks
-│   │   └── test_scan.py            # Pytest repository scanner & filter suite with respx mocks
-│   ├── .env.example                # Backend environment configuration template
-│   ├── .gitignore                  # Python ignore rules
-│   └── requirements.txt            # Python dependencies
-│
+│   │   │   ├── github_service.py   # GitHub API client and URL validation
+│   │   │   ├── repository_scanner.py
+│   │   │   ├── analysis_engine.py  # Runs all analyzers over a downloaded repo
+│   │   │   ├── analyzers/          # Python AST, Ruff, Bandit, JS/ESLint, secret scanner
+│   │   │   ├── rules/              # Built-in Python / JS / security rules
+│   │   │   ├── diagnosis/          # Root-cause and cross-layer analysis, LLM provider
+│   │   │   ├── fixes/              # Patch generation, diffing, validation
+│   │   │   ├── verification/       # Isolated workspace, patch apply, re-check
+│   │   │   ├── publishing/         # Branch + pull request creation
+│   │   │   └── monitoring/         # Webhook verification, auto re-analysis jobs
+│   │   └── utils/file_filters.py   # File exclusion, secret-file detection, classification
+│   ├── tests/                      # pytest suite
+│   ├── .env.example
+│   └── requirements.txt
 ├── src/
-│   ├── components/
-│   │   ├── bugs/                   # Diff viewer, code comparison
-│   │   ├── dashboard/              # Statistics cards, health gauges, tables
-│   │   ├── layout/                 # Sidebar, Topbar, DashboardLayout
-│   │   ├── repositories/           # AnalyzeRepositoryModal
-│   │   └── ui/                     # Button, Card, Badge, Modal, Input, Select, Toast
-│   ├── data/
-│   │   ├── mockBugs.ts             # Illustrative mock bug findings
-│   │   ├── mockFixHistory.ts       # Mock audit trail
-│   │   ├── mockRepositories.ts     # Initial demo repositories
-│   │   └── repositoryStore.ts      # Merges inspected GitHub repos with localStorage
-│   ├── pages/                      # Dashboard, Repositories, BugReports, Details, Settings
-│   ├── services/
-│   │   └── api.ts                  # Reusable frontend API client
+│   ├── components/                 # layout, dashboard, bugs, repositories, ui
+│   ├── data/                       # demo data + repositoryStore (localStorage)
+│   ├── pages/                      # one file per route
+│   ├── services/api.ts             # typed backend API client
 │   ├── types/
-│   │   └── index.ts                # TypeScript data interfaces
-│   ├── App.tsx                     # React Router tree
-│   ├── index.css                   # Tailwind directives and theme styles
-│   └── main.tsx                    # React application entrypoint
-├── .env.example                    # Frontend environment configuration template
+│   ├── utils/pdfGenerator.ts
+│   ├── App.tsx                     # routes
+│   └── main.tsx
+├── .env.example                    # frontend env (VITE_API_BASE_URL)
 ├── package.json
-├── tailwind.config.js
-├── tsconfig.json
 └── vite.config.ts
-```
-
----
-
-## Setup & Running Instructions (Windows PowerShell)
-
-### Prerequisites
-- Node.js (v18+)
-- Python (v3.10+)
-
----
-
-### 1. Backend Setup & Startup
-
-1. Open a PowerShell terminal and navigate to the `backend` folder:
-   ```powershell
-   cd "s:\details imfo\backend"
-   ```
-
-2. Create a virtual environment:
-   ```powershell
-   python -m venv .venv
-   ```
-
-3. Activate the virtual environment:
-   ```powershell
-   .\.venv\Scripts\Activate.ps1
-   ```
-
-4. Install the backend dependencies:
-   ```powershell
-   pip install -r requirements.txt
-   ```
-
-5. (Optional) Create a `.env` file from the example:
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-
-6. Start the FastAPI development server:
-   ```powershell
-   uvicorn app.main:app --reload --port 8000
-   ```
-   *The backend will be available at `http://127.0.0.1:8000`. API documentation is available at `http://127.0.0.1:8000/docs`.*
-
----
-
-### 2. Frontend Setup & Startup
-
-1. Open a second PowerShell terminal in the project root:
-   ```powershell
-   cd "s:\details imfo"
-   ```
-
-2. Install the frontend dependencies (if not already installed):
-   ```powershell
-   npm install
-   ```
-
-3. (Optional) Configure environment variables:
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-   *`VITE_API_BASE_URL` defaults to `http://localhost:8000`.*
-
-4. Start the Vite development server:
-   ```powershell
-   npm run dev
-   ```
-   *The frontend will run at `http://localhost:5175/`.*
-
----
-
-## Running Automated Tests
-
-To run the backend test suite with mocked GitHub HTTP responses:
-
-```powershell
-cd "s:\details imfo\backend"
-.\.venv\Scripts\pytest -v tests
-```
-
-To run the frontend production build and type checking:
-
-```powershell
-cd "s:\details imfo"
-npm run build
 ```
 
 ---
@@ -179,7 +197,7 @@ npm run build
   ```json
   {
     "status": "ok",
-    "service": "CodeLens AI API"
+    "service": "TeamPulse API"
   }
   ```
 
@@ -303,7 +321,7 @@ npm run build
     ]
   }
   ```
-- **Testing via PowerShell**:
+- **Testing via PowerShell** (macOS/Linux: see the `curl` example in [Quick Start](#4-try-it)):
   ```powershell
   # Test with curl.exe
   curl.exe -X POST "http://127.0.0.1:8000/api/repositories/analyze" `
@@ -339,12 +357,9 @@ npm run build
 
 To equip the scanner environment with all supported external CLI tools:
 
-```powershell
-# In backend virtual environment:
-cd "s:\details imfo\backend"
-.\.venv\Scripts\pip install ruff>=0.8.0 bandit>=1.8.0
+Ruff and Bandit are installed by `backend/requirements.txt`. For JavaScript/TypeScript analysis, also install ESLint:
 
-# Optional JavaScript analyzer:
+```bash
 npm install -g eslint
 ```
 
@@ -389,7 +404,7 @@ Because public repositories contain untrusted user code, CodeLens AI enforces st
 ## How to Test Static Bug Analysis
 
 1. Ensure the backend is running (`uvicorn app.main:app --port 8000` in `backend/`).
-2. Open `http://localhost:5175/` in your browser.
+2. Open `http://localhost:5173/` in your browser (or whichever port `npm run dev` printed).
 3. Click **"+ Analyze Repository"**.
 4. Enter any public repository (e.g. `https://github.com/pallets/flask` or `https://github.com/tiangolo/fastapi`).
 5. Click **"Run Static Bug Analysis"**:
@@ -642,7 +657,11 @@ The system strictly distinguishes between independent states:
 - **Patch Applied in Workspace**: Patch applied successfully to a temporary ephemeral sandbox.
 - **Static Checks Passed**: Static analyzers and syntax parsers completed with 0 critical syntax errors or regressions.
 - **Tests Not Requested / Unavailable / Passed / Failed**: Indicates whether restricted container testing ran and its exact outcome.
-- **Verified Under Configured Checks**: Target finding resolved with 0 regressions under executed tools.
+- **Verified Under Configured Checks** (`completed`): Target finding resolved with 0 regressions under executed tools.
+- **Regression Warning** (`partial`): Target finding resolved, but the patch introduced new findings in the patched file.
+- **Failed** (`failed`): Patch did not apply, syntax/static checks or tests failed, or the target finding is still reported after the patch.
+
+Only findings in the patched file are compared; pre-existing issues elsewhere in the repository are not counted as regressions.
 
 ### Structured Verification Record Schema Example
 
@@ -693,10 +712,10 @@ The system strictly distinguishes between independent states:
 }
 ```
 
-```powershell
-$env:PYTHONPATH="backend"; & "backend/.venv/Scripts/pytest.exe" -v backend/tests
+```bash
+cd backend && pytest -v tests
 ```
-All 80 tests across inspection, repository scanning, AST static analysis, AI diagnosis, fix generation, isolated workspace verification, and GitHub branch/PR publishing run and pass offline without external network dependencies.
+Tests across inspection, repository scanning, AST static analysis, AI diagnosis, fix generation, isolated workspace verification, and GitHub branch/PR publishing run and pass offline without external network dependencies.
 
 ---
 
@@ -797,8 +816,9 @@ Comparing findings between the current commit and prior scan:
 #### A. Configure Webhook Secret
 In `backend/.env`:
 ```env
-GITHUB_WEBHOOK_SECRET=codelens_dev_webhook_secret_key
+GITHUB_WEBHOOK_SECRET=<a long random string>
 ```
+Generate one with `python3 -c "import secrets; print(secrets.token_hex(32))"`. If unset, a built-in development value is used, which is fine locally but must not be used for a publicly reachable backend.
 
 #### B. Setup Local Secure Tunnel (e.g. ngrok or smee.io)
 To test live webhooks from GitHub to your local machine:
@@ -814,24 +834,19 @@ smee --url https://smee.io/your-unique-channel --target http://127.0.0.1:8000/ap
 1. Go to your repository on GitHub: **Settings** → **Webhooks** → **Add webhook**.
 2. **Payload URL**: `https://<your-ngrok-domain>/api/webhooks/github` (or your production URL).
 3. **Content type**: `application/json`.
-4. **Secret**: `codelens_dev_webhook_secret_key` (matches `GITHUB_WEBHOOK_SECRET`).
+4. **Secret**: the same value as `GITHUB_WEBHOOK_SECRET`.
 5. **Which events**: Select **Let me select individual events** → Check **Pushes** and **Pull requests**.
 6. Click **Add webhook**. GitHub will send an initial `ping` event. CodeLens AI will acknowledge it and mark the repository webhook status as **Connected**.
 
 #### D. Run Backend & Frontend
-```powershell
-# 1. Start Backend:
-$env:PYTHONPATH="backend"; & "backend\.venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-
-# 2. Start Frontend:
-npm run dev
-```
+Start both as described in [Quick Start](#quick-start).
 
 #### E. Run Automated Tests
-```powershell
-$env:PYTHONPATH="backend"; & "backend\.venv\Scripts\pytest.exe" -v backend/tests/test_monitoring.py
+```bash
+cd backend
+pytest -v tests/test_monitoring.py
 ```
-*(All 97 unit and integration tests run fully mocked with zero external account dependencies).*
+*(The whole backend suite runs fully mocked with zero external account dependencies.)*
 
 #### F. Troubleshooting
 - **401 Invalid Signature**: Verify the secret entered in GitHub Webhook settings exactly matches `GITHUB_WEBHOOK_SECRET`.

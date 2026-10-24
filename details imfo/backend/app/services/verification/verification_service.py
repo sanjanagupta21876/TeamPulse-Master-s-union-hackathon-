@@ -208,7 +208,11 @@ class VerificationService:
         completed_at_iso = datetime.now(timezone.utc).isoformat()
 
         # Determine overall verification job status
-        if not patch_applied or static_status == "failed" or tests_status == "failed":
+        target_still_reported = static_status == "passed" and any(
+            f.id == proposal.finding_id for f in remaining_findings
+        )
+
+        if not patch_applied or static_status == "failed" or tests_status == "failed" or target_still_reported:
             overall_status = "failed"
         elif newly_introduced:
             overall_status = "partial"

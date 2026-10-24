@@ -256,3 +256,47 @@ def test_get_fix_and_diff_endpoints():
     diff_data = diff_res.json()
     assert "unified_diff" in diff_data
     assert diff_data["additions"] >= 1
+
+
+def test_diff_service_does_not_double_newlines():
+    """Unified diff lines must not carry their own line endings into the joined output."""
+    diff_svc = DiffService()
+    proposed = SAMPLE_PY_CONTENT.replace("except:", "except Exception:")
+    res = diff_svc.calculate_diff("src/calc.py", SAMPLE_PY_CONTENT, proposed)
+    assert "\n\n" not in res.unified_diff
+    assert "-    except:\n+    except Exception:" in res.unified_diff
+    assert all(not line.endswith("\n") for hunk in res.hunks for line in hunk.lines)
+
+
+def _fallback_finding(file_path: str, rule_id: str, start_line: int = 1) -> Finding:
+    return SAMPLE_FINDING_PY.model_copy(
+        update={"file_path": file_path, "rule_id": rule_id, "start_line": start_line, "title": "Test finding"}
+    )
+
+
+def test_fallback_patch_does_not_rewrite_python_equality():
+    """The JS strict-equality rewrite must never be applied to Python source."""
+    content = "if a == b:\n    pass\n"
+    output = PatchGenerator()._generate_deterministic_fallback_patch(
+        _fallback_finding("src/app.py", "PY-ERR-002"), content
+    )
+    assert "===" not in output.proposed_content
+    assert "# CodeLens AI TODO (PY-ERR-002)" in output.proposed_content
+
+
+def test_fallback_patch_uses_js_comment_syntax():
+    """Guidance comments inserted into JS/TS files must use // rather than #."""
+    content = "eval(userInput);\n"
+    output = PatchGenerator()._generate_deterministic_fallback_patch(
+        _fallback_finding("src/app.ts", "JS-SEC-002"), content
+    )
+    assert output.proposed_content.startswith("// CodeLens AI TODO (JS-SEC-002)")
+    assert "#" not in output.proposed_content
+
+
+def test_fallback_patch_applies_js_strict_equality():
+    content = "if (a == b) {}\n"
+    output = PatchGenerator()._generate_deterministic_fallback_patch(
+        _fallback_finding("src/app.js", "JS-CORR-001"), content
+    )
+    assert output.proposed_content == "if (a === b) {}\n"

@@ -128,7 +128,8 @@ class VerificationRunner:
                         ),
                         timeout=self.policy.STATIC_CHECKS_TIMEOUT_SECONDS,
                     )
-                    findings.extend(res)
+                    # Workspace-wide tools (ruff, bandit) report on every file; keep only the patched one
+                    findings.extend(f for f in res if f.file_path == target_file)
                 except asyncio.TimeoutError:
                     warnings.append(f"Analyzer '{analyzer.name}' timed out after {self.policy.STATIC_CHECKS_TIMEOUT_SECONDS}s.")
                 except Exception as err:

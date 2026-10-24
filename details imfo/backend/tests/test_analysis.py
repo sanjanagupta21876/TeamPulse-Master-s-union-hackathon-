@@ -302,3 +302,35 @@ def test_clean_repository_disclaimer():
     assert len(data["findings"]) == 0
     # Must report disclaimer rather than claiming bug-free
     assert any("does not guarantee the absence of bugs" in w for w in data["analysis"]["warnings"])
+
+
+def test_bandit_findings_use_repository_relative_paths(tmp_path):
+    """Bandit reports './'-prefixed paths; they must resolve against the scan workspace, not the server cwd."""
+    import asyncio
+    from app.services.analyzers.python_analyzer import BanditAnalyzer
+
+    analyzer = BanditAnalyzer()
+    if not analyzer.is_available():
+        pytest.skip("bandit is not installed")
+
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    source = "import subprocess\nsubprocess.call('ls', shell=True)\n"
+    (pkg / "mod.py").write_text(source)
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    test_source = "def test_it():\n    assert 1 == 1\n"
+    (tests_dir / "test_mod.py").write_text(test_source)
+
+    findings = asyncio.run(
+        analyzer.analyze(
+            files={"pkg/mod.py": source, "tests/test_mod.py": test_source},
+            repo="acme/demo",
+            branch="main",
+            commit_sha="sha",
+            work_dir=str(tmp_path),
+        )
+    )
+    assert findings
+    # B101 asserts inside test files are filtered out as noise
+    assert {f.file_path for f in findings} == {"pkg/mod.py"}
